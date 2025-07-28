@@ -1,0 +1,15 @@
+# Full requirements including all optional packages for enhanced performance
+pymupdf>=1.22.0
+faiss-cpu>=1.7.4
+onnxruntime>=1.15.0
+sentence-transformers>=2.2.2
+transformers>=4.30.0
+numpy>=1.24.0
+tqdm>=4.65.0
+torch>=2.0.0
+pydantic>=2.0.0
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+ujson>=5.7.0
+rich>=13.4.0
