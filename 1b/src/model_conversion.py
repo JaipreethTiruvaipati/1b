@@ -35,9 +35,15 @@ def convert_sentence_transformer_to_onnx(
     onnx_path = output_dir / f"{model_filename}.onnx"
     quantized_path = output_dir / f"{model_filename}_quantized.onnx"
     
-    # Load model
-    print(f"Loading model {model_name}...")
-    model = SentenceTransformer(model_name)
+    # Set transformers to offline mode
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    # Use local model path if available
+    local_model_path = Path(output_dir) / model_name.replace('/', '_')
+    if local_model_path.exists():
+        model = SentenceTransformer(str(local_model_path))
+    else:
+        model = SentenceTransformer(model_name)
+    model = model.to('cpu')
     
     # Prepare dummy input
     dummy_input = torch.ones(1, 128, dtype=torch.int64)  # (batch_size, seq_length)
@@ -117,13 +123,15 @@ def convert_cross_encoder_to_onnx(
     onnx_path = output_dir / f"{model_filename}.onnx"
     quantized_path = output_dir / f"{model_filename}_quantized.onnx"
     
-    # Load model
-    print(f"Loading model {model_name}...")
+    # Set transformers to offline mode
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    local_model_path = Path(output_dir) / model_name.replace('/', '_')
     try:
         from sentence_transformers.cross_encoder import CrossEncoder
-        model = CrossEncoder(model_name)
-        
-        # Get the underlying PyTorch model
+        if local_model_path.exists():
+            model = CrossEncoder(str(local_model_path))
+        else:
+            model = CrossEncoder(model_name)
         torch_model = model.model
         
         # Prepare dummy input

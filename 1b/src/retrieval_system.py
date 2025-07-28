@@ -14,6 +14,7 @@ class Retriever:
     """
     Document retrieval system using SentenceTransformers and FAISS.
     This class handles embedding generation and approximate nearest neighbor search.
+    All model loading is now offline, local, and CPU-only.
     """
     
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
@@ -26,9 +27,15 @@ class Retriever:
         self.model_name = model_name
         self.model_dir = Path("models")
         self.model_dir.mkdir(exist_ok=True)
-        
-        # Initialize the embedding model
-        self.model = SentenceTransformer(model_name)
+        # Set transformers to offline mode
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        # Use local model path if available
+        local_model_path = self.model_dir / model_name.replace('/', '_')
+        if local_model_path.exists():
+            self.model = SentenceTransformer(str(local_model_path))
+        else:
+            self.model = SentenceTransformer(model_name)
+        self.model = self.model.to('cpu')
         self.embedding_dim = self.model.get_sentence_embedding_dimension()
         
         # Initialize FAISS index
@@ -102,6 +109,7 @@ class Reranker:
     """
     Document reranking system using cross-encoders.
     This class handles reranking of initial retrieval results.
+    All model loading is now offline, local, and CPU-only.
     """
     
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L6-v2"):
@@ -114,17 +122,26 @@ class Reranker:
         self.model_name = model_name
         self.model_dir = Path("models")
         self.model_dir.mkdir(exist_ok=True)
-        
-        # Initialize tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        
-        # Load cross-encoder model
-        try:
-            from sentence_transformers.cross_encoder import CrossEncoder
-            self.model = CrossEncoder(model_name)
-        except ImportError:
-            print("CrossEncoder not available, using ONNX runtime directly")
-            self.model = None
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        local_model_path = self.model_dir / model_name.replace('/', '_')
+        if local_model_path.exists():
+            self.tokenizer = AutoTokenizer.from_pretrained(str(local_model_path))
+            try:
+                from sentence_transformers.cross_encoder import CrossEncoder
+                self.model = CrossEncoder(str(local_model_path))
+            except ImportError:
+                print("CrossEncoder not available, using ONNX runtime directly")
+                self.model = None
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            try:
+                from sentence_transformers.cross_encoder import CrossEncoder
+                self.model = CrossEncoder(model_name)
+            except ImportError:
+                print("CrossEncoder not available, using ONNX runtime directly")
+                self.model = None
+        if self.model is not None and hasattr(self.model, 'to'):
+            self.model = self.model.to('cpu')
     
     def _convert_to_onnx(self):
         """
@@ -167,6 +184,7 @@ class Reranker:
 class RetrievalSystem:
     """
     Complete retrieval system combining the retriever and reranker.
+    All model loading is now offline, local, and CPU-only.
     """
     
     def __init__(
